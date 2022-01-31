@@ -2,90 +2,119 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 
+from config import *
 
-PROJECT_ROOT = '/Users/josephcoppin/PycharmProjects/graphplotting/'
+
+def sci_not(s):
+    return ('{:.' + str(sig_figs) + 'e}').format(s)
 
 
 def str_polynomial(coefficients):
     return ' '.join(
-        f'{"{:e}".format(co)}x^{len(coefficients) - i - 1}'
+        f'{"{:3e}".format(co)}x^{len(coefficients) - i - 1}'
         for i, co in enumerate(coefficients)
     )
 
 
-with open(PROJECT_ROOT + 'data_x.txt') as data_x:
-    with open(PROJECT_ROOT + 'data_y.txt') as data_y:
-        x = np.array(list(map(lambda d: float(d), data_x.read().split('\n'))))
-        y = np.array(list(map(lambda d: float(d), data_y.read().split('\n'))))
-
-x_label = input('X label: ') or 'x'
-y_label = input('Y label: ') or 'y'
-title = input('Title: ') or 'title'
-
-uncertainty_type = int(input('Uncertainty type (0=constant, 1=%)') or 1)
-
-uncertainty_x = float(input('Uncertainty X: ') or 0.1)
-uncertainty_y = float(input('Uncertainty Y: ') or 0.1)
-
-# plotting the points
-plt.scatter(x, y)
-if uncertainty_type == 1:
-    plt.errorbar(x, y, x * uncertainty_x / 100., y * uncertainty_y / 100., barsabove='False')
-else:
-    plt.errorbar(x, y, uncertainty_x, uncertainty_y)
+def format_uncertainty(u, unit=''):
+    if uncertainty_type == uncertainty_types['percentage']:
+        return f'±{u * 100}%'
+    return f'±{u} {unit}'
 
 
-max_x = uncertainty_x + x
-min_x = uncertainty_x - x
-max_y = uncertainty_x + y
-min_y = uncertainty_x - y
+def load_data():
+    """
+        Loads data from local files data_x.txt and data_y.txt
+    :return: (x: list, y: list)
+    """
+    with open(PROJECT_ROOT + 'data_x.txt') as data_x:
+        with open(PROJECT_ROOT + 'data_y.txt') as data_y:
+            x = np.array(list(map(lambda d: float(d), data_x.read().split('\n'))))
+            y = np.array(list(map(lambda d: float(d), data_y.read().split('\n'))))
 
-if uncertainty_type == 1:
-    max_x = np.fromiter((n + n * uncertainty_x for n in x), float)
-    min_x = np.fromiter((n - n * uncertainty_x for n in x), float)
+            return x, y
 
-    max_y = np.fromiter((n + n * uncertainty_x for n in y), float)
-    min_y = np.fromiter((n - n * uncertainty_x for n in y), float)
 
-# plot max and mins
-if uncertainty_x != 0 or uncertainty_y != 0:
-    plt.scatter(max_x, max_y)
-    plt.scatter(min_x, min_y)
-    plt.scatter(max_x, min_y)
-    plt.scatter(min_x, max_y)
+def find_min_max(x, y):
+    max_x = uncertainty_x + x
+    min_x = uncertainty_x - x
+    max_y = uncertainty_x + y
+    min_y = uncertainty_x - y
 
-plt.plot(np.unique(x), np.poly1d(np.polyfit(x, y, 1))(np.unique(x)))
+    if uncertainty_type == 1:
+        max_x = np.fromiter((n + n * uncertainty_x for n in x), float)
+        min_x = np.fromiter((n - n * uncertainty_x for n in x), float)
 
-gradients = [
-    (np.polyfit(x, y, 1), x, y),
-    (np.polyfit(min_x, y, 1), min_x, y),
-    (np.polyfit(max_x, y, 1), x, y),
-    (np.polyfit(x, min_y, 1), x, y),
-    (np.polyfit(min_x, min_y, 1), x, y),
-    (np.polyfit(max_x, min_y, 1), x, y),
-    (np.polyfit(x, max_y, 1), x, y),
-    (np.polyfit(min_x, max_y, 1), x, y),
-    (np.polyfit(max_x, max_y, 1), x, y)
-]
-print('Eq:  ' + str_polynomial(np.polyfit(x, y, 1)))
-print('Gradient:  ' + '{:e}'.format(np.polyfit(x, y, 1)[0]))
+        max_y = np.fromiter((n + n * uncertainty_x for n in y), float)
+        min_y = np.fromiter((n - n * uncertainty_x for n in y), float)
 
-min_g = ([math.inf], )
-max_g = ([-math.inf], )
-for g in gradients:
-    if g[0][0] < min_g[0][0]:
-        min_g = g
+    possibilities = [
+        (min_x, y),
+        (max_x, y),
+        (x, min_y),
+        (min_x, min_y),
+        (max_x, min_y),
+        (x, max_y),
+        (min_x, max_y),
+        (max_x, max_y)
+    ]
 
-    if g[0][0] > max_g[0][0]:
-        max_g = g
+    min_g = ([math.inf],)
+    max_g = ([-math.inf],)
+    for x_set, y_set in possibilities:
+        g = np.polyfit(x_set, y_set, 1)
+        if g[0] < min_g[0][0]:
+            min_g = (g, x_set, y_set)
 
-print('Max gradient: ' + '{:e}'.format(max_g[0][0]))
-print('Min gradient: ' + '{:e}'.format(min_g[0][0]))
+        if g[0] > max_g[0][0]:
+            max_g = (g, x_set, y_set)
 
-plt.plot(np.unique(max_x), np.poly1d(np.polyfit(max_x, max_y, 1))(np.unique(max_x)))
-plt.plot(np.unique(min_x), np.poly1d(np.polyfit(min_x, min_y, 1))(np.unique(min_x)))
+    return min_g, max_g
 
-plt.xlabel(x_label)
-plt.ylabel(y_label)
-plt.title(title)
-plt.show()
+
+def plot(x, y, max_g, min_g, gradient):
+    """
+        Plots all data
+    :param x: x values
+    :param y: y values
+    :param max_g: (max gradient, max gradient x values, max gradient y values)
+    :param min_g: (min gradient, min gradient x values, min gradient y values)
+    :param gradient: string describing the gradient in scientific notation
+    """
+    plt.scatter(x, y)
+    if uncertainty_type == 1:
+        plt.errorbar(x, y, y * uncertainty_y, x * uncertainty_x, barsabove='False')
+    else:
+        plt.errorbar(x, y, uncertainty_x, uncertainty_y)
+
+    plt.plot(np.unique(x), np.poly1d(np.polyfit(x, y, 1))(np.unique(x)))
+
+    plt.plot(np.unique(max_g[1]), np.poly1d(max_g[0])(np.unique(max_g[1])))
+    plt.plot(np.unique(min_g[1]), np.poly1d(min_g[0])(np.unique(min_g[1])))
+
+    grad_uncertainty = uncertainty_x + uncertainty_y
+    grad_unit = f'{y_unit}/{x_unit}'
+
+    plt.xlabel(f'{x_label} ({x_unit}) {format_uncertainty(uncertainty_x, x_unit)}')
+    plt.ylabel(f'{y_label} ({y_unit}) {format_uncertainty(uncertainty_y, y_unit)}')
+    plt.title(f'{title} - {gradient} {grad_unit} {format_uncertainty(grad_uncertainty, x_unit)}')
+    plt.show()
+
+
+def main():
+    x, y = load_data()
+
+    min_g, max_g = find_min_max(x, y)
+
+    str_grad = sci_not(np.polyfit(x, y, 1)[0])
+
+    print('Eq:  ' + str_polynomial(np.polyfit(x, y, 1)))
+    print('Gradient:  ' + str_grad)
+    print('Max gradient: ' + sci_not(max_g[0][0]))
+    print('Min gradient: ' + sci_not(min_g[0][0]))
+
+    plot(x, y, max_g, min_g, str_grad)
+
+
+if __name__ == '__main__':
+    main()
