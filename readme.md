@@ -1,3 +1,5 @@
+![example](https://github.com/revers3ntropy/data-plotter/blob/master/example.png)
+
 This is for the specific use case of two linearly correlated variables, 
 where you care about the gradient, and you want to plot vertical and horizontal uncertainties 
 as well as maximum and minimum gradients.
@@ -8,3 +10,9 @@ as well as maximum and minimum gradients.
 3. `cd data-plotter`
 4. Edit the config.py file (e.g. `sudo nano config.py`)
 5. `python3 __main__.py`
+
+
+
+This uses polynomial regression to find the lines of best fit, and for the min and max tries all 
+possible gradients within the uncertainties provided. This means that the max and min can be slightly outside the 
+error bars, as it is the 
