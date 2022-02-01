@@ -35,7 +35,7 @@ def load_data():
             return x, y
 
 
-def find_min_max(x, y):
+def find_bounds(x, y):
     max_x = uncertainty_x + x
     min_x = uncertainty_x - x
     max_y = uncertainty_x + y
@@ -72,48 +72,70 @@ def find_min_max(x, y):
     return min_g, max_g
 
 
-def plot(x, y, max_g, min_g, gradient):
+def plot(x, y, max_bounds, min_bounds, gradient):
     """
         Plots all data
     :param x: x values
     :param y: y values
-    :param max_g: (max gradient, max gradient x values, max gradient y values)
-    :param min_g: (min gradient, min gradient x values, min gradient y values)
+    :param max_bounds: (max gradient, max gradient x values, max gradient y values)
+    :param min_bounds: (min gradient, min gradient x values, min gradient y values)
     :param gradient: string describing the gradient in scientific notation
     """
+    # plot scatter of points
     plt.scatter(x, y)
+    # add error bars to all points
     if uncertainty_type == 1:
         plt.errorbar(x, y, y * uncertainty_y, x * uncertainty_x, barsabove='False')
     else:
         plt.errorbar(x, y, uncertainty_x, uncertainty_y)
 
-    plt.plot(np.unique(x), np.poly1d(np.polyfit(x, y, 1))(np.unique(x)))
+    # plot line of best fit
+    g = np.polyfit(x, y, 1)
+    line, = plt.plot(np.unique(x), np.poly1d(g)(np.unique(x)))
+    line.set_color(colours['lobf'])
 
-    plt.plot(np.unique(max_g[1]), np.poly1d(max_g[0])(np.unique(max_g[1])))
-    plt.plot(np.unique(min_g[1]), np.poly1d(min_g[0])(np.unique(min_g[1])))
+    # plot the min and max gradients
+    line, = plt.plot(np.unique(x), np.poly1d(max_grad)(np.unique(x)))
+    line.set_color(colours['max'])
+    line, = plt.plot(np.unique(x), np.poly1d(min_grad)(np.unique(x)))
+    line.set_color(colours['min'])
 
+    # plot the min and max bounds
+    if show_bounds:
+        line, = plt.plot(np.unique(max_bounds[1]), np.poly1d(max_bounds[0])(np.unique(max_bounds[1])))
+        line.set_color(colours['max-bounds'])
+        line, = plt.plot(np.unique(min_bounds[1]), np.poly1d(min_bounds[0])(np.unique(min_bounds[1])))
+        line.set_color(colours['min-bounds'])
+
+    # get the uncertainty and units and stuff
     grad_uncertainty = uncertainty_x + uncertainty_y
     grad_unit = f'{y_unit}/{x_unit}'
+    if len(y_unit) > 2 or len(x_unit) > 2:
+        grad_unit = f'({y_unit})/({x_unit})'
 
+    # add labels to the graph
     plt.xlabel(f'{x_label} ({x_unit}) {format_uncertainty(uncertainty_x, x_unit)}')
     plt.ylabel(f'{y_label} ({y_unit}) {format_uncertainty(uncertainty_y, y_unit)}')
-    plt.title(f'{title} - {gradient} {grad_unit} {format_uncertainty(grad_uncertainty, x_unit)}')
+    plt.title(f'{title} \n {gradient} {grad_unit} {format_uncertainty(grad_uncertainty, x_unit)}')
     plt.show()
 
 
 def main():
     x, y = load_data()
 
-    min_g, max_g = find_min_max(x, y)
+    bounds_x, bounds_y = find_bounds(x, y)
 
-    str_grad = sci_not(np.polyfit(x, y, 1)[0])
+    g = np.polyfit(x, y, 1)
+    str_grad = sci_not(g[0])
 
-    print('Eq:  ' + str_polynomial(np.polyfit(x, y, 1)))
+    uncertainty = round(((min_grad[0] + max_grad[0]) / 2) / g[0], sig_figs)
+
+    print('Eq:  ' + str_polynomial(g))
     print('Gradient:  ' + str_grad)
-    print('Max gradient: ' + sci_not(max_g[0][0]))
-    print('Min gradient: ' + sci_not(min_g[0][0]))
+    print('Uncertainty: ' + str(round(uncertainty * 100, 2)) + '%')
+    print(f'Min/Max Gradient: {sci_not(min_grad[0])} / {sci_not(max_grad[0])}')
 
-    plot(x, y, max_g, min_g, str_grad)
+    plot(x, y, bounds_x, bounds_y, str_grad)
 
 
 if __name__ == '__main__':
