@@ -1,4 +1,4 @@
-PROJECT_ROOT = '/Users/josephcoppin/PycharmProjects/graphplotting/'
+PROJECT_ROOT = '/home/joseph/Projects/data-plotter/'
 
 x_label = 'strain'
 y_label = 'stress'
