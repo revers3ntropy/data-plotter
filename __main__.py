@@ -72,7 +72,7 @@ def find_bounds(x, y):
     return min_g, max_g
 
 
-def plot(x, y, max_bounds, min_bounds, gradient):
+def plot(x, y, max_bounds, min_bounds, gradient, uncertainty):
     """
         Plots all data
     :param x: x values
@@ -113,10 +113,29 @@ def plot(x, y, max_bounds, min_bounds, gradient):
     if len(y_unit) > 2 or len(x_unit) > 2:
         grad_unit = f'({y_unit})/({x_unit})'
 
+    final_title = f'{title}'
+    final_title += f'\n {gradient} {grad_unit}'
+    final_title += f'{format_uncertainty(grad_uncertainty, grad_unit)} (actual {format_uncertainty(uncertainty, grad_unit)})'
+    final_title += f'\n Min: {sci_not(min_grad[0])} {grad_unit}, Max: {sci_not(max_grad[0])} {grad_unit}'
+
     # add labels to the graph
     plt.xlabel(f'{x_label} ({x_unit}) {format_uncertainty(uncertainty_x, x_unit)}')
     plt.ylabel(f'{y_label} ({y_unit}) {format_uncertainty(uncertainty_y, y_unit)}')
-    plt.title(f'{title} \n {gradient} {grad_unit} {format_uncertainty(grad_uncertainty, x_unit)}')
+    plt.title(final_title, {
+        'fontsize': 'medium'
+    })
+
+    if uncertainty_type == uncertainty_types['percentage']:
+        plt.fill_between(
+            np.unique(x),
+            np.poly1d(max_grad)(np.unique(x)),
+            np.poly1d(min_grad)(np.unique(x)),
+            alpha=0.2,
+            interpolate=True
+        )
+    else:
+        plt.fill_between(x, y - uncertainty, y + uncertainty_y, alpha=0.5)
+
     plt.show()
 
 
@@ -135,7 +154,7 @@ def main():
     print('Uncertainty: ' + str(round(uncertainty * 100, 2)) + '%')
     print(f'Min/Max Gradient: {sci_not(min_grad[0])} / {sci_not(max_grad[0])}')
 
-    plot(x, y, bounds_x, bounds_y, str_grad)
+    plot(x, y, bounds_x, bounds_y, str_grad, uncertainty)
 
 
 if __name__ == '__main__':
