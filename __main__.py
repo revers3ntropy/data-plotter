@@ -1,6 +1,4 @@
-import math
 import matplotlib.pyplot as plt
-import numpy as np
 
 from config import *
 
@@ -31,8 +29,8 @@ def load_data():
         with open(PROJECT_ROOT + 'data_y.txt') as data_y:
             x = np.array(list(map(lambda d: float(d), data_x.read().split('\n'))))
             y = np.array(list(map(lambda d: float(d), data_y.read().split('\n'))))
-
-            return x, y
+            return np.sort(np.fromiter(map(code_x, x), float)),\
+                   np.sort(np.fromiter(map(code_y, y), float))
 
 
 def find_bounds(x, y):
@@ -75,6 +73,7 @@ def find_bounds(x, y):
 def plot(x, y, max_bounds, min_bounds, gradient, uncertainty):
     """
         Plots all data
+    :param uncertainty:
     :param x: x values
     :param y: y values
     :param max_bounds: (max gradient, max gradient x values, max gradient y values)
@@ -82,23 +81,24 @@ def plot(x, y, max_bounds, min_bounds, gradient, uncertainty):
     :param gradient: string describing the gradient in scientific notation
     """
     # plot scatter of points
-    plt.scatter(x, y)
+    plt.plot(x, y, 'o', color=colours['points'])
     # add error bars to all points
-    if uncertainty_type == 1:
-        plt.errorbar(x, y, y * uncertainty_y, x * uncertainty_x, barsabove='False')
+    if uncertainty_type == uncertainty_types['percentage']:
+        plt.errorbar(x, y, y * uncertainty_y, x * uncertainty_x, barsabove='False', capsize=2, ls='none')
     else:
-        plt.errorbar(x, y, uncertainty_x, uncertainty_y)
+        plt.errorbar(x, y, uncertainty_x, uncertainty_y, barsabove='False', capsize=2, ls='none')
 
     # plot line of best fit
     g = np.polyfit(x, y, 1)
-    line, = plt.plot(np.unique(x), np.poly1d(g)(np.unique(x)))
-    line.set_color(colours['lobf'])
+    if show_lobf:
+        line, = plt.plot(np.unique(x), np.poly1d(g)(np.unique(x)))
+        line.set_color(colours['lobf'])
 
-    # plot the min and max gradients
-    line, = plt.plot(np.unique(x), np.poly1d(max_grad)(np.unique(x)))
-    line.set_color(colours['max'])
-    line, = plt.plot(np.unique(x), np.poly1d(min_grad)(np.unique(x)))
-    line.set_color(colours['min'])
+    if show_max_min_grad:
+        line, = plt.plot(np.unique(x), np.poly1d(max_grad)(np.unique(x)))
+        line.set_color(colours['max'])
+        line, = plt.plot(np.unique(x), np.poly1d(min_grad)(np.unique(x)))
+        line.set_color(colours['min'])
 
     # plot the min and max bounds
     if show_bounds:
@@ -125,16 +125,17 @@ def plot(x, y, max_bounds, min_bounds, gradient, uncertainty):
         'fontsize': 'medium'
     })
 
-    if uncertainty_type == uncertainty_types['percentage']:
-        plt.fill_between(
-            np.unique(x),
-            np.poly1d(max_grad)(np.unique(x)),
-            np.poly1d(min_grad)(np.unique(x)),
-            alpha=0.2,
-            interpolate=True
-        )
-    else:
-        plt.fill_between(x, y - uncertainty, y + uncertainty_y, alpha=0.5)
+    if show_fill:
+        if uncertainty_type == uncertainty_types['percentage']:
+            plt.fill_between(
+                np.unique(x),
+                np.poly1d(max_grad)(np.unique(x)),
+                np.poly1d(min_grad)(np.unique(x)),
+                alpha=0.2,
+                interpolate=True
+            )
+        else:
+            plt.fill_between(x, y - uncertainty, y + uncertainty_y, alpha=0.5)
 
     plt.show()
 
@@ -147,7 +148,7 @@ def main():
     g = np.polyfit(x, y, 1)
     str_grad = sci_not(g[0])
 
-    uncertainty = round(((min_grad[0] + max_grad[0]) / 2) / g[0], sig_figs)
+    uncertainty = math.fabs(round((min_grad[0] - max_grad[0]) / g[0], sig_figs))
 
     print('Eq:  ' + str_polynomial(g))
     print('Gradient:  ' + str_grad)
