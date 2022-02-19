@@ -14,10 +14,10 @@ def str_polynomial(coefficients):
     )
 
 
-def format_uncertainty(u, unit=''):
-    if uncertainty_type == uncertainty_types['percentage']:
-        return f'±{u * 100}%'
-    return f'±{u} {unit}'
+def format_uncertainty(u, unit='', type=uncertainty_type):
+    if type == uncertainty_types['percentage']:
+        return f'±{round(u * 100, sig_figs)}%'
+    return f'±{round(u, sig_figs)} {unit}'
 
 
 def load_data():
@@ -27,8 +27,8 @@ def load_data():
     """
     with open(PROJECT_ROOT + 'data_x.txt') as data_x:
         with open(PROJECT_ROOT + 'data_y.txt') as data_y:
-            x = np.array(list(map(lambda d: float(d), data_x.read().split('\n'))))
-            y = np.array(list(map(lambda d: float(d), data_y.read().split('\n'))))
+            x = np.array(list(map(float, data_x.read().split('\n'))))
+            y = np.array(list(map(float, data_y.read().split('\n'))))
             return np.sort(np.fromiter(map(code_x, x), float)),\
                    np.sort(np.fromiter(map(code_y, y), float))
 
@@ -119,7 +119,8 @@ def plot(x, y, max_bounds, min_bounds, gradient, uncertainty):
     final_title = f'{title}'
     final_title += f'\n {gradient} {grad_unit}'
     final_title += f'{format_uncertainty(grad_uncertainty, grad_unit)}'
-    final_title += f' (actual {format_uncertainty(uncertainty, grad_unit)})'
+    final_title += f' (actual {format_uncertainty(uncertainty, grad_unit, uncertainty_types["constant"])}'
+    final_title += f', {format_uncertainty(uncertainty / g[0], grad_unit, uncertainty_types["percentage"])})'
     final_title += f'\n Min: {sci_not(min_grad[0])} {grad_unit}, Max: {sci_not(max_grad[0])} {grad_unit}'
 
     # add labels to the graph
@@ -152,7 +153,7 @@ def main():
     g = np.polyfit(x, y, 1)
     str_grad = sci_not(g[0])
 
-    uncertainty = math.fabs(round((min_grad[0] - max_grad[0]) / g[0], sig_figs))
+    uncertainty = math.fabs(round((min_grad[0] - max_grad[0]) / 2, sig_figs))
 
     print('Eq:  ' + str_polynomial(g))
     print('Gradient:  ' + str_grad)
