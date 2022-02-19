@@ -113,9 +113,13 @@ def plot(x, y, max_bounds, min_bounds, gradient, uncertainty):
     if len(y_unit) > 2 or len(x_unit) > 2:
         grad_unit = f'({y_unit})/({x_unit})'
 
+    if y_unit == x_unit:
+        grad_unit = ''
+
     final_title = f'{title}'
     final_title += f'\n {gradient} {grad_unit}'
-    final_title += f'{format_uncertainty(grad_uncertainty, grad_unit)} (actual {format_uncertainty(uncertainty, grad_unit)})'
+    final_title += f'{format_uncertainty(grad_uncertainty, grad_unit)}'
+    final_title += f' (actual {format_uncertainty(uncertainty, grad_unit)})'
     final_title += f'\n Min: {sci_not(min_grad[0])} {grad_unit}, Max: {sci_not(max_grad[0])} {grad_unit}'
 
     # add labels to the graph
