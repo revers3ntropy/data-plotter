@@ -13,6 +13,4 @@ as well as maximum and minimum gradients.
 
 
 
-This uses polynomial regression to find the lines of best fit, and for the min and max tries all 
-possible gradients within the uncertainties provided. This means that the max and min can be slightly outside the 
-error bars.
+This uses polynomial regression to find the lines of best fit.
