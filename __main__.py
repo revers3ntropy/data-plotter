@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-from config import *
+from frequency_rate_down import *
 
 
 def sci_not(s):
@@ -20,17 +20,46 @@ def format_uncertainty(u, unit='', type=uncertainty_type):
     return f'±{round(u, sig_figs)} {unit}'
 
 
-def load_data():
+def clean_data(x, y):
+    grads = [(x[i] / y[i]) for i in range(len(x))]
+    diff = np.ma.array(grads).anom()
+
+    x_ = []
+    y_ = []
+
+    anoms = []
+
+    for i in range(len(x)):
+        if diff[i] > anomaly_boundary or diff[i] < -anomaly_boundary:
+            anoms.append(i)
+            continue
+        x_.append(x[i])
+        y_.append(y[i])
+
+    print(f'{len(x) - len(x_)} anomalies ({round((len(x) - len(x_)) / len(x) * 100, 2)}%) found {anoms}')
+
+    return np.array(x_), np.array(y_)
+
+
+def load_data_from_file():
     """
         Loads data from local files data_x.txt and data_y.txt
     :return: (x: list, y: list)
     """
-    with open(PROJECT_ROOT + 'data_x.txt') as data_x:
-        with open(PROJECT_ROOT + 'data_y.txt') as data_y:
-            x = np.array(list(map(float, data_x.read().split('\n'))))
-            y = np.array(list(map(float, data_y.read().split('\n'))))
-            return np.sort(np.fromiter(map(code_x, x), float)),\
-                   np.sort(np.fromiter(map(code_y, y), float))
+    with open(PROJECT_ROOT + 'data_x.txt') as raw_x:
+        with open(PROJECT_ROOT + 'data_y.txt') as raw_y:
+            x = np.array(list(map(float, raw_x.read().split('\n'))))
+            y = np.array(list(map(float, raw_y.read().split('\n'))))
+            return clean_data(np.fromiter(map(code_x, x), float),
+                              np.fromiter(map(code_y, y), float))
+
+
+def get_data_from_config():
+    print(data_x[0])
+    return clean_data(
+        np.fromiter(map(code_x, np.array(data_x)), float),
+        np.fromiter(map(code_y, np.array(data_y)), float)
+    )
 
 
 def find_bounds(x, y):
@@ -81,6 +110,7 @@ def plot(x, y, max_bounds, min_bounds, gradient, uncertainty):
     :param gradient: string describing the gradient in scientific notation
     """
     # plot scatter of points
+
     plt.plot(x, y, 'o', color=colours['points'])
     # add error bars to all points
     if uncertainty_type == uncertainty_types['percentage']:
@@ -117,15 +147,17 @@ def plot(x, y, max_bounds, min_bounds, gradient, uncertainty):
         grad_unit = ''
 
     final_title = f'{title}'
-    final_title += f'\n {gradient} {grad_unit}'
-    final_title += f'{format_uncertainty(grad_uncertainty, grad_unit)}'
-    final_title += f' (actual {format_uncertainty(uncertainty, grad_unit, uncertainty_types["constant"])}'
-    final_title += f', {format_uncertainty(uncertainty / g[0], grad_unit, uncertainty_types["percentage"])})'
-    final_title += f'\n Min: {sci_not(min_grad[0])} {grad_unit}, Max: {sci_not(max_grad[0])} {grad_unit}'
+    if show_gradient_in_title:
+        final_title += f'\n {gradient} {grad_unit}'
+        # final_title += f'{format_uncertainty(grad_uncertainty, grad_unit)}'
+        final_title += f' (actual {format_uncertainty(uncertainty, grad_unit, uncertainty_types["constant"])}'
+        final_title += f', {format_uncertainty(uncertainty / g[0], grad_unit, uncertainty_types["percentage"])})'
+        final_title += f'\n Min: {sci_not(min_grad[0])} {grad_unit}, Max: {sci_not(max_grad[0])} {grad_unit}'
 
     # add labels to the graph
-    plt.xlabel(f'{x_label} ({x_unit}) {format_uncertainty(uncertainty_x, x_unit)}')
-    plt.ylabel(f'{y_label} ({y_unit}) {format_uncertainty(uncertainty_y, y_unit)}')
+    # swap x and y values - why ??
+    plt.xlabel(f'{x_label} ({x_unit}) {format_uncertainty(uncertainty_y, x_unit)}')
+    plt.ylabel(f'{y_label} ({y_unit}) {format_uncertainty(uncertainty_x, y_unit)}')
     plt.title(final_title, {
         'fontsize': 'medium'
     })
@@ -146,7 +178,10 @@ def plot(x, y, max_bounds, min_bounds, gradient, uncertainty):
 
 
 def main():
-    x, y = load_data()
+    if use_data_from_file:
+        x, y = load_data_from_file()
+    else:
+        x, y = get_data_from_config()
 
     bounds_x, bounds_y = find_bounds(x, y)
 
@@ -160,6 +195,7 @@ def main():
     print('Uncertainty: ' + str(round(uncertainty * 100, 2)) + '%')
     print(f'Min/Max Gradient: {sci_not(min_grad[0])} / {sci_not(max_grad[0])}')
 
+    print(x[0])
     plot(x, y, bounds_x, bounds_y, str_grad, uncertainty)
 
 
